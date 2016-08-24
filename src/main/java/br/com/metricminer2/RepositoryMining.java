@@ -33,6 +33,8 @@ import com.google.common.collect.Lists;
 
 import br.com.metricminer2.domain.ChangeSet;
 import br.com.metricminer2.domain.Commit;
+import br.com.metricminer2.listener.BreakMineRepositoryListener;
+import br.com.metricminer2.listener.BreakMineVisitorListener;
 import br.com.metricminer2.persistence.NoPersistence;
 import br.com.metricminer2.persistence.PersistenceMechanism;
 import br.com.metricminer2.scm.CommitVisitor;
@@ -43,6 +45,8 @@ public class RepositoryMining {
 
 	private List<SCMRepository> repos;
 	private Map<CommitVisitor, PersistenceMechanism> visitors;
+	private List<BreakMineRepositoryListener> breakMineRepositoryListeners;
+	private List<BreakMineVisitorListener>  breakMineVisitorListeners;
 	
 	private static Logger log = Logger.getLogger(RepositoryMining.class);
 	private CommitRange range;
@@ -52,6 +56,8 @@ public class RepositoryMining {
 	public RepositoryMining() {
 		repos = new ArrayList<SCMRepository>();
 		visitors = new HashMap<CommitVisitor, PersistenceMechanism>();
+		breakMineRepositoryListeners = new ArrayList<BreakMineRepositoryListener>();
+		breakMineVisitorListeners = new ArrayList<BreakMineVisitorListener>();
 		this.threads = 1;
 	}
 	
@@ -67,6 +73,12 @@ public class RepositoryMining {
 	
 	public RepositoryMining process(CommitVisitor visitor, PersistenceMechanism writer) {
 		visitors.put(visitor, writer);
+		if(visitor instanceof BreakMineRepositoryListener) {
+			this.breakMineRepositoryListeners.add((BreakMineRepositoryListener) visitor);
+		}
+		if(visitor instanceof BreakMineVisitorListener) {
+			this.breakMineVisitorListeners.add((BreakMineVisitorListener) visitor);
+		}
 		return this;
 	}
 	
@@ -115,21 +127,26 @@ public class RepositoryMining {
 		for(List<ChangeSet> partition : partitions) {
 			
 			exec.submit(() -> {
-					for(ChangeSet cs : partition) {
-						try {
-							processEverythingOnChangeSet(repo, cs);
-						} catch (OutOfMemoryError e) {
-							System.err.println("Commit " + cs.getId() + " in " + repo.getLastDir() + " caused OOME");
-							e.printStackTrace();
-							System.err.println("goodbye :/");
-							
-							log.fatal("Commit " + cs.getId() + " in " + repo.getLastDir() + " caused OOME", e);
-							log.fatal("Goodbye! ;/");
-							System.exit(-1);
-						} catch(Throwable t) {
-							log.error(t);
+				for(ChangeSet cs : partition) {
+					try {
+						processEverythingOnChangeSet(repo, cs);
+						for (BreakMineRepositoryListener breakMineRepositoryListener : breakMineRepositoryListeners) {
+							if(breakMineRepositoryListener.breakMining()) {
+								exec.shutdownNow();
+							}
 						}
+					} catch (OutOfMemoryError e) {
+						System.err.println("Commit " + cs.getId() + " in " + repo.getLastDir() + " caused OOME");
+						e.printStackTrace();
+						System.err.println("goodbye :/");
+						
+						log.fatal("Commit " + cs.getId() + " in " + repo.getLastDir() + " caused OOME", e);
+						log.fatal("Goodbye! ;/");
+						System.exit(-1);
+					} catch(Throwable t) {
+						log.error(t);
 					}
+				}
 			});
 		}
 		
@@ -170,6 +187,7 @@ public class RepositoryMining {
 				" from " + commit.getAuthor().getName() + 
 				" with " + commit.getModifications().size() + " modifications");
 
+		mineVisitors:
 		for(Map.Entry<CommitVisitor, PersistenceMechanism> entry : visitors.entrySet()) {
 			CommitVisitor visitor = entry.getKey();
 			PersistenceMechanism writer = entry.getValue();
@@ -177,6 +195,11 @@ public class RepositoryMining {
 			try {
 				log.info("-> Processing " + commit.getHash() + " with " + visitor.name());
 				visitor.process(repo, commit, writer);
+				for (BreakMineVisitorListener breakMineVisitorListener : breakMineVisitorListeners) {
+					if(breakMineVisitorListener.breakMining()) {
+						break mineVisitors;
+					}
+				}
 			} catch (Exception e) {
 				log.error("error processing #" + commit.getHash() + " in " + repo.getPath() + 
 						", processor=" + visitor.name() + ", error=" + e.getMessage(), e);
