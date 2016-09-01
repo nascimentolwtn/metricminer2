@@ -132,6 +132,7 @@ public class RepositoryMining {
 						processEverythingOnChangeSet(repo, cs);
 						for (BreakMineRepositoryListener breakMineRepositoryListener : breakMineRepositoryListeners) {
 							if(breakMineRepositoryListener.breakMining()) {
+								log.info(breakMineRepositoryListener.logBreakMessage());
 								exec.shutdownNow();
 							}
 						}
