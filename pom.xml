@@ -3,7 +3,7 @@
 	<groupId>br.usp</groupId>
 	<artifactId>metricminer</artifactId>
 	<packaging>jar</packaging>
-	<version>2.4.2-SNAPSHOT</version>
+	<version>2.4.3-SNAPSHOT</version>
 	<name>metricminer2</name>
 	<url>http://www.metricminer.org.br</url>
 	<description>Framework for researchers in MSR</description>
@@ -134,6 +134,11 @@
 			<version>1.8.10</version>
 		</dependency>
 
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-email</artifactId>
+		    <version>1.4</version>
+		</dependency>
 	</dependencies>
 
 	<distributionManagement>

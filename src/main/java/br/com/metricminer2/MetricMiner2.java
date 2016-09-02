@@ -21,6 +21,8 @@ import java.util.Calendar;
 
 import org.apache.log4j.Logger;
 
+import br.com.metricminer2.notifiers.NotifierWhenDone;
+
 public class MetricMiner2 {
 
 	public static void main(String[] args) {
@@ -28,6 +30,7 @@ public class MetricMiner2 {
 	}
 	
 	private static Logger log = Logger.getLogger(MetricMiner2.class);
+	private NotifierWhenDone notifierWhenDone;
 
 	public void start(Study study) {
 
@@ -48,16 +51,35 @@ public class MetricMiner2 {
 				log.error("some study error came to me", t);
 			}
 			
-			Calendar finishDate = Calendar.getInstance();
-			log.info("Finished: " + new SimpleDateFormat("MM-dd-yyyy HH:mm:ss").format(finishDate.getTime()));
-			long seconds = (finishDate.getTimeInMillis() - startDate.getTimeInMillis())/1000;
-			log.info("It took " + seconds + " seconds (~" + seconds/60 + " minutes).");
-			log.info("Brought to you by MetricMiner2 (metricminer.org.br)");
-			log.info("# -------------------------------------------------- #");
+			String finishMessage = buildFinishMessage(startDate);
+			log.info(finishMessage);
+			if(this.notifierWhenDone != null) {
+				this.notifierWhenDone.notifyAfterMining(finishMessage);
+			}
 			
 		} catch(Throwable ex) {
 			log.error("Some error ocurred", ex);
 		}
+	}
+
+	private String buildFinishMessage(Calendar startDate) {
+		StringBuilder sb = new StringBuilder();
+		Calendar finishDate = Calendar.getInstance();
+		sb.append("Finished: " + new SimpleDateFormat("MM-dd-yyyy HH:mm:ss").format(finishDate.getTime()));
+		sb.append("\n");
+		long seconds = (finishDate.getTimeInMillis() - startDate.getTimeInMillis())/1000;
+		sb.append("It took " + seconds + " seconds (~" + seconds/60 + " minutes).");
+		sb.append("\n");
+		sb.append("Brought to you by MetricMiner2 (metricminer.org.br)");
+		sb.append("\n");
+		sb.append("# -------------------------------------------------- #");
+		sb.append("\n");
+		return sb.toString();
+	}
+
+	public MetricMiner2 notifyWhenDone(NotifierWhenDone notifierWhenDone) {
+		this.notifierWhenDone = notifierWhenDone;
+		return this;
 	}
 
 
